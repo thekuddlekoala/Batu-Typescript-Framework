@@ -1,4 +1,3 @@
-import { Server, Client } from "@rbxts/red";
 import { Players, RunService } from "@rbxts/services";
 
 type Element = {
