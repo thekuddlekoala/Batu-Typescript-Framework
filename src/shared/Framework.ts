@@ -16,7 +16,6 @@ type Element = {
 };
 
 const IS_SERVER = RunService.IsServer();
-const IS_CLIENT = !IS_SERVER;
 
 export class Framework {
 	path: Folder;
