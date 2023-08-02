@@ -1,7 +1,7 @@
-import { ReplicatedStorage } from "@rbxts/services";
+import { ServerScriptService } from "@rbxts/services";
 import { Framework } from "shared/Framework";
 
-const MODULES = ReplicatedStorage.WaitForChild("Modules") as Folder;
+const MODULES = ServerScriptService.WaitForChild("TS").WaitForChild("Services") as Folder;
 const START = tick();
 
 new Framework(MODULES);
