@@ -58,7 +58,12 @@ export class Framework {
 		//* Connections
 		if (IS_SERVER) {
 			this.cached.forEach((info, _) => {
-				if (info._PlayerAdded) {
+				if (
+					info._PlayerAdded ||
+					info._CharacterAdded ||
+					info._CharacterAppearanceAdded ||
+					info._CharacterRemoved
+				) {
 					this.addedCache.push(info);
 				}
 
