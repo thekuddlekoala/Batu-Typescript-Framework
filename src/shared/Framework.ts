@@ -1,3 +1,4 @@
+import { Client, Server } from "@rbxts/red";
 import { Players, RunService } from "@rbxts/services";
 
 type Element = {
@@ -128,4 +129,100 @@ export class Framework {
 			});
 		});
 	}
+}
+
+class ServerRS {
+	name: string;
+	net: Server;
+	callbacks: Array<(player: Player, ...args: unknown[]) => unknown>;
+
+	constructor(name: string) {
+		this.name = name;
+		this.net = Server("_remoteSignals");
+		this.callbacks = new Array<(player: Player, ...args: unknown[]) => unknown>();
+
+		//* Setup the callback connection
+		this.net.On(name, (player: Player, ...args: unknown[]) => {
+			this.callbacks.forEach((callback) => {
+				callback(player, args);
+			});
+		});
+	}
+
+	connect(callback: (player: Player, ...args: unknown[]) => unknown) {
+		this.callbacks.push(callback);
+
+		//* Returns a cleanup function
+		return () => {
+			const index = this.callbacks.indexOf(callback);
+
+			if (index !== -1) {
+				this.callbacks.remove(index);
+			}
+		};
+	}
+
+	fire(player: Player, ...args: unknown[]) {
+		this.net.Fire(player, this.name, args);
+	}
+
+	fireAll(...args: unknown[]) {
+		this.net.FireAll(this.name, args);
+	}
+
+	fireAllExcept(exclude: Player, ...args: unknown[]) {
+		this.net.FireAllExcept(exclude, this.name, args);
+	}
+
+	fireWithFilter(filter: (player: Player) => boolean, ...args: unknown[]) {
+		this.net.FireWithFilter(filter, this.name, args);
+	}
+
+	fireList(list: Player[], ...args: unknown[]) {
+		this.net.FireList(list, this.name, args);
+	}
+}
+
+class ClientRS {
+	name: string;
+	net: Client;
+	callbacks: Array<(...args: unknown[]) => unknown>;
+
+	constructor(name: string) {
+		this.name = name;
+		this.net = Client("_remoteSignals");
+		this.callbacks = new Array<(...args: unknown[]) => unknown>();
+
+		//* Setup the callback connection
+		this.net.On(name, (...args: unknown[]) => {
+			this.callbacks.forEach((callback) => {
+				callback(args);
+			});
+		});
+	}
+
+	connect(callback: (...args: unknown[]) => unknown) {
+		this.callbacks.push(callback);
+
+		//* Returns a cleanup function
+		return () => {
+			const index = this.callbacks.indexOf(callback);
+
+			if (index !== -1) {
+				this.callbacks.remove(index);
+			}
+		};
+	}
+
+	fire(...args: unknown[]) {
+		this.net.Fire(this.name, args);
+	}
+
+	invoke(...args: unknown[]) {
+		return this.net.Call(this.name, args);
+	}
+}
+
+export function RemoteSignal(name: string) {
+	return (IS_SERVER && new ServerRS(name)) || new ClientRS(name);
 }
