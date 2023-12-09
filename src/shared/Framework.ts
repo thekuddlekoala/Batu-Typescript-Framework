@@ -18,13 +18,18 @@ type Element = {
 const IS_SERVER = RunService.IsServer();
 
 export class Framework {
-	path: Folder;
+	path: Folder[];
 	cached: Map<string, Element>;
 	addedCache: Array<Element>;
 	removedCache: Array<Element>;
 
-	constructor(path: Folder) {
-		this.path = path;
+	constructor(path: Folder, path2?: Folder) {
+		this.path = [path];
+
+		if (path2) {
+			this.path.push(path2);
+		}
+
 		this.cached = new Map<string, Element>();
 		this.addedCache = new Array<Element>();
 		this.removedCache = new Array<Element>();
@@ -33,13 +38,15 @@ export class Framework {
 	}
 
 	start() {
-		this.path.GetDescendants().forEach((child) => {
-			if (!child.IsA("ModuleScript")) {
-				return;
-			}
+		this.path.forEach((p) => {
+			p.GetDescendants().forEach((child) => {
+				if (!child.IsA("ModuleScript")) {
+					return;
+				}
 
-			const result = require(child) as Element;
-			this.cached.set(child.Name, result);
+				const result = require(child) as Element;
+				this.cached.set(child.Name, result);
+			});
 		});
 
 		//* Pre-Init
@@ -57,7 +64,7 @@ export class Framework {
 		});
 
 		//* Connections
-		if (IS_SERVER) {
+		if (IS_SERVER === true) {
 			this.cached.forEach((info, _) => {
 				if (
 					info._PlayerAdded ||
@@ -74,9 +81,14 @@ export class Framework {
 			});
 		} else {
 			const player = Players.LocalPlayer;
+			const character = player.Character;
 
 			this.cached.forEach((info, _) => {
 				if (info._CharacterAdded) {
+					if (character) {
+						info._CharacterAdded(character);
+					}
+
 					player.CharacterAdded.Connect(info._CharacterAdded);
 				}
 
@@ -129,100 +141,4 @@ export class Framework {
 			});
 		});
 	}
-}
-
-class ServerRS {
-	name: string;
-	net: Server;
-	callbacks: Array<(player: Player, ...args: unknown[]) => unknown>;
-
-	constructor(name: string) {
-		this.name = name;
-		this.net = Server("_remoteSignals");
-		this.callbacks = new Array<(player: Player, ...args: unknown[]) => unknown>();
-
-		//* Setup the callback connection
-		this.net.On(name, (player: Player, ...args: unknown[]) => {
-			this.callbacks.forEach((callback) => {
-				callback(player, args);
-			});
-		});
-	}
-
-	connect(callback: (player: Player, ...args: unknown[]) => unknown) {
-		this.callbacks.push(callback);
-
-		//* Returns a cleanup function
-		return () => {
-			const index = this.callbacks.indexOf(callback);
-
-			if (index !== -1) {
-				this.callbacks.remove(index);
-			}
-		};
-	}
-
-	fire(player: Player, ...args: unknown[]) {
-		this.net.Fire(player, this.name, args);
-	}
-
-	fireAll(...args: unknown[]) {
-		this.net.FireAll(this.name, args);
-	}
-
-	fireAllExcept(exclude: Player, ...args: unknown[]) {
-		this.net.FireAllExcept(exclude, this.name, args);
-	}
-
-	fireWithFilter(filter: (player: Player) => boolean, ...args: unknown[]) {
-		this.net.FireWithFilter(filter, this.name, args);
-	}
-
-	fireList(list: Player[], ...args: unknown[]) {
-		this.net.FireList(list, this.name, args);
-	}
-}
-
-class ClientRS {
-	name: string;
-	net: Client;
-	callbacks: Array<(...args: unknown[]) => unknown>;
-
-	constructor(name: string) {
-		this.name = name;
-		this.net = Client("_remoteSignals");
-		this.callbacks = new Array<(...args: unknown[]) => unknown>();
-
-		//* Setup the callback connection
-		this.net.On(name, (...args: unknown[]) => {
-			this.callbacks.forEach((callback) => {
-				callback(args);
-			});
-		});
-	}
-
-	connect(callback: (...args: unknown[]) => unknown) {
-		this.callbacks.push(callback);
-
-		//* Returns a cleanup function
-		return () => {
-			const index = this.callbacks.indexOf(callback);
-
-			if (index !== -1) {
-				this.callbacks.remove(index);
-			}
-		};
-	}
-
-	fire(...args: unknown[]) {
-		this.net.Fire(this.name, args);
-	}
-
-	invoke(...args: unknown[]) {
-		return this.net.Call(this.name, args);
-	}
-}
-
-export function RemoteSignal(name: string) {
-	return (IS_SERVER && new ServerRS(name)) || new ClientRS(name);
 }
